@@ -10,7 +10,8 @@ from pydrake.all import (
     SymbolicVectorSystem,
     Solve,
     Variables,
-    System
+    System,
+    ToLatex
 )
 import pydrake.symbolic as sym
 from pydrake.symbolic import Polynomial
@@ -23,7 +24,10 @@ Code for example 1.
 def find_lyapunov():
     prog = MathematicalProgram()
     x = prog.NewIndeterminates(2, "x")
-    f = [-x[0] - 2 * x[1] ** 2, -x[1] - x[0] * x[1] - 2 * x[1] ** 3]
+    # f = [-x[0] - 2 * x[1] ** 2, -x[1] - x[0] * x[1] - 2 * x[1] ** 3]
+
+    # Dynamics of a jet engine: (Derived from Moore-Greitzer)
+    f = [-x[1] - 1.5*x[0]**2 - 0.5*x[0]**3, 3*x[0] - x[1]]
 
     V = prog.NewSosPolynomial(Variables(x), 4)[0].ToExpression()
     prog.AddLinearConstraint(V.Substitute({x[0]: 0, x[1]: 0}) == 0)
@@ -34,11 +38,19 @@ def find_lyapunov():
 
     result = Solve(prog)
     V_certificate = Polynomial(result.GetSolution(V)).RemoveTermsWithSmallCoefficients(1e-6)
-    print(V_certificate.ToExpression())    
+    print("$V(x) = "
+            + ToLatex(
+                V_certificate.ToExpression(), 6,
+            )
+            + "$")    
     sys = SymbolicVectorSystem(state=x, dynamics=f)
     fig, ax = plt.subplots(figsize=(10, 10))
-    plot_2d_phase_portrait(sys, (-3, 3), (-3, 3))
-    plot_lyapunov_function(V_certificate, x, (-3, 3), (-3, 3))
+
+    lim = 10
+    x1lim = (-lim,lim)
+    x2lim = (-lim,lim)
+    plot_2d_phase_portrait(sys, x1lim, x2lim)
+    plot_lyapunov_function(V_certificate, x, x1lim, x2lim, levels=np.linspace(0, 3000, 11))
     plt.show()
 
 if __name__ == '__main__':

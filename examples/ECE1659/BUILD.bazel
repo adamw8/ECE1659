@@ -1,14 +1,14 @@
 py_library(
-    name = "franka_logging_utils",
-    srcs = ["franka_logging_utils.py"],
+    name = "plotting_utils",
+    srcs = ["plotting_utils.py"],
     deps = [
         "//bindings/pydrake"
     ]
 )
 
 py_binary(
-    name = "sos",
-    srcs = ["sos.py"],
+    name = "global_lyapunov",
+    srcs = ["global_lyapunov.py"],
     deps = [
         "//bindings/pydrake",
     ],

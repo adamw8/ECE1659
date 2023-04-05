@@ -62,7 +62,7 @@ def plot_2d_phase_portrait(f, x1lim=(-1, 1), x2lim=(-1, 1), n=100j, **kwargs):
     plt.gca().set_aspect("equal")
     plt.legend(["Vector Field"])
 
-def plot_lyapunov_function(V, x, x1lim=(-1, 1), x2lim=(-1, 1), n=100, linewidth=2.5):
+def plot_lyapunov_function(V, x, x1lim=(-1, 1), x2lim=(-1, 1), n=100, levels=None, linewidth=2.5):
     X1 = np.linspace(x1lim[0], x1lim[1], n)
     X2 = np.linspace(x2lim[0], x2lim[1], n)
     Z = np.zeros((n, n))
@@ -71,5 +71,12 @@ def plot_lyapunov_function(V, x, x1lim=(-1, 1), x2lim=(-1, 1), n=100, linewidth=
             Z[i,j] = V.Evaluate({x[0]: x1, x[1]: x2})
     
     cmap = plt.get_cmap('autumn')
-    contour = plt.contour(X1, X2, Z, linestyles='dashed', cmap=cmap, linewidths=linewidth)
+    if levels is not None:
+        contour = plt.contour(X1, X2, Z, levels=levels, 
+                          linestyles='dashed', cmap=cmap, 
+                          linewidths=linewidth)
+    else:
+        contour = plt.contour(X1, X2, Z, 
+                          linestyles='dashed', cmap=cmap, 
+                          linewidths=linewidth)
     plt.colorbar(contour, label=r"$v(x_1, x_2)$")
