@@ -32,6 +32,14 @@ py_binary(
 )
 
 py_binary(
+    name = "pendulum_simulation",
+    srcs = ["pendulum_simulation.py"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+py_binary(
     name = "lqr",
     srcs = ["lqr.py"],
     deps = [
