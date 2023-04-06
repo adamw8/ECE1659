@@ -18,7 +18,9 @@ from pydrake.symbolic import Polynomial
 from plotting_utils import *
 
 """
-Code for example 1.
+Code for Global Lyapunov Example
+
+Parts of code are adapted from Russ Tedrake's underactuated course notes.
 """
 
 def find_lyapunov():
@@ -29,7 +31,7 @@ def find_lyapunov():
     # Dynamics of a jet engine: (Derived from Moore-Greitzer)
     f = [-x[1] - 1.5*x[0]**2 - 0.5*x[0]**3, 3*x[0] - x[1]]
 
-    V = prog.NewSosPolynomial(Variables(x), 4)[0].ToExpression()
+    V = prog.NewSosPolynomial(Variables(x), 2)[0].ToExpression()
     prog.AddLinearConstraint(V.Substitute({x[0]: 0, x[1]: 0}) == 0)
     prog.AddLinearConstraint(V.Substitute({x[0]: 1, x[1]: 0}) == 1)
     Vdot = V.Jacobian(x).dot(f)

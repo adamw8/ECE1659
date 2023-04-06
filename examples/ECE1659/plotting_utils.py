@@ -7,7 +7,7 @@ from pydrake.all import (
 )
 from copy import copy
 
-def plot_2d_phase_portrait(f, x1lim=(-1, 1), x2lim=(-1, 1), n=100j, **kwargs):
+def plot_2d_phase_portrait(f, x1lim=(-1, 1), x2lim=(-1, 1), n=100j, colored=False, **kwargs):
     """
     Code adapted from Russ Tedrake's underactuated course
 
@@ -46,12 +46,17 @@ def plot_2d_phase_portrait(f, x1lim=(-1, 1), x2lim=(-1, 1), n=100j, **kwargs):
     color = np.sqrt(X1d**2 + X2d**2)
 
     # phase portrait (annoying input format of streamplot)
-    strm = plt.streamplot(
-        X1.T[0], X2[0], X1d.T, X2d.T, color='gray', **kwargs
-    )
+    if colored:
+        strm = plt.streamplot(
+            X1.T[0], X2[0], X1d.T, X2d.T, color=color.T, **kwargs
+        )
 
-    # colorbar on the right that measures the magnitude of xdot
-    # plt.gcf().colorbar(strm.lines, label=r"$v(x_1, x_2)$")
+        # colorbar on the right that measures the magnitude of xdot
+        plt.gcf().colorbar(strm.lines, label=r"$|\dot\mathbf{x}|$")
+    else:
+        strm = plt.streamplot(
+            X1.T[0], X2[0], X1d.T, X2d.T, color="gray", **kwargs
+        )
 
     # misc plot settings
     plt.title("System Phase Portrait")
@@ -68,7 +73,7 @@ def plot_lyapunov_function(V, x, x1lim=(-1, 1), x2lim=(-1, 1), n=100, levels=Non
     Z = np.zeros((n, n))
     for i, x1 in enumerate(X1):
         for j, x2 in enumerate(X2):
-            Z[i,j] = V.Evaluate({x[0]: x1, x[1]: x2})
+            Z[j,i] = V.Evaluate({x[0]: x1, x[1]: x2})
     
     cmap = plt.get_cmap('autumn')
     if levels is not None:
