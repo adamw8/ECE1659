@@ -1,5 +1,6 @@
 import math
 
+import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -25,10 +26,18 @@ from pendulum_utils import *
 Code for Region of Attraction Example
 """
 
-def pendulum_ROA():
-    rho = 1
-    (pendulum, V, xbar, is_certified) = verify_rho(rho)
-    # (pendulum, V, xbar, rho) = maximize_rho()
+def pendulum_ROA(mode, rho=-1):
+    if mode == 'verify':
+        if rho < 0:
+            print("Please pass a valid value for rho.")
+            return
+        else:
+            (pendulum, V, xbar, is_certified) = verify_rho(rho)
+    elif mode == 'maximize':
+        (pendulum, V, xbar, rho) = maximize_rho()
+    else:
+        print("Please pass a valid value for mode. Options: verify, maximize.")
+        return
 
     # visualize the dynamics
     # sys = SymbolicVectorSystem(state=x, dynamics=f)
@@ -59,4 +68,11 @@ def pendulum_ROA():
     
 
 if __name__ == '__main__':
-    pendulum_ROA()
+    parser = argparse.ArgumentParser(
+                    prog='local_lyapunov',
+                    description='Computes ROA for a the simple pendulum system')
+    parser.add_argument('--mode', default=-1)
+    parser.add_argument('--rho', type=float)
+    args = parser.parse_args()
+
+    pendulum_ROA(args.mode, args.rho)
