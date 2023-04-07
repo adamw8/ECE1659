@@ -4,24 +4,9 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-from pydrake.all import (
-    Jacobian,
-    MathematicalProgram,
-    SymbolicVectorSystem,
-    Solve,
-    Variables,
-    System,
-    ToLatex,
-    DiagramBuilder,
-    LinearQuadraticRegulator,
-    Linearize
-)
-from pydrake.examples import PendulumPlant
-import pydrake.symbolic as sym
-from pydrake.symbolic import Polynomial
 from plotting_utils import *
 from pendulum_utils import *
+
 """
 Code for Region of Attraction Example
 """
@@ -40,7 +25,6 @@ def pendulum_ROA(mode, rho=-1):
         return
 
     # visualize the dynamics
-    # sys = SymbolicVectorSystem(state=x, dynamics=f)
     fig, ax = plt.subplots(figsize=(10, 20))
     xlim = (-2*np.pi,2*np.pi)
     ylim = (-5,5)
