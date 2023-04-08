@@ -40,6 +40,14 @@ py_binary(
 )
 
 py_binary(
+    name = "bilinear_ROA",
+    srcs = ["bilinear_ROA.py"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+py_binary(
     name = "lqr",
     srcs = ["lqr.py"],
     deps = [

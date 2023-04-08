@@ -55,8 +55,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
                     prog='local_lyapunov',
                     description='Computes ROA for a the simple pendulum system')
-    parser.add_argument('--mode', default=-1)
-    parser.add_argument('--rho', type=float)
+    parser.add_argument('--mode')
+    parser.add_argument('--rho', type=float, default=-1)
     args = parser.parse_args()
 
     pendulum_ROA(args.mode, args.rho)

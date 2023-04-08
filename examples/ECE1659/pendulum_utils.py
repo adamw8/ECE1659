@@ -1,4 +1,5 @@
 import numpy as np
+import math
 
 
 from pydrake.all import (
@@ -33,7 +34,7 @@ def verify_rho(rho):
     # Pendulum Parameters
     m = 1
     l = 0.5
-    b = 0.1 # no damping
+    b = 0.1
     g = 9.81
     
     # Define the SOS program
@@ -85,3 +86,124 @@ def maximize_rho():
     
     (pendulum, V, xbar, is_certified) = verify_rho(best_rho)
     return (pendulum, V, xbar, best_rho)
+
+def maximize_rho_bilinear(V, xbar, f, iter=3):
+    def optimize_lambda_given_V(V, xbar, f, lambda_degree=2):
+        """
+        Solves the program:
+        
+        max rho
+        s.t. -Vdot(x) + lambda(x)^T(V(x)-rho) is SOS
+        
+        using line search.
+
+        Given Variables: V, (Vdot)
+        Decision variables: lambda, rho
+        """
+
+        # Find Vdot
+        Vdot = Jacobian([V], xbar).dot(f)[0][0]
+        
+        # line search for best rho
+        rho = 1
+        lo = 1
+        hi = -1
+        iteration = 0
+        best_rho = -1
+        best_lambda = None
+
+        while True:
+             # Define the SOS program
+            prog = MathematicalProgram()
+            prog.AddIndeterminates(xbar)
+
+            # add constraints
+            lambda_xbar = prog.NewSosPolynomial(
+                Variables(xbar), lambda_degree)[0].ToExpression()
+            prog.AddSosConstraint(-Vdot + lambda_xbar*(V-rho))
+            prog.AddSosConstraint(V)
+            prog.AddSosConstraint(lambda_xbar)
+
+            # solve program
+            result = Solve(prog)
+
+            # line search
+            iteration += 1
+            if (result.is_success()):
+                best_rho = rho
+                best_lambda = Polynomial(result.GetSolution(lambda_xbar)).ToExpression()
+                lo = rho
+                rho = (lo+hi)/2 if hi > 0 else 2*lo
+            else:
+                hi = rho
+                rho = (lo+hi)/2
+
+            if (hi > 0 and hi-lo < 1) or iteration >= 20:
+                break
+        
+        return best_lambda, best_rho
+    
+    def optimize_V_given_lambda(lambda_xbar, xbar, f, V_degree=2):
+        """
+        Solves the program:
+        
+        min Tr(P)
+        s.t. V(x) = m(x)^T*P*m(x)
+            (x^T*x)^d*(V(x)-1) + lambda(x)^T*Vdot(x)
+             P >= eps*I
+        
+        Given variables: lambda(x)
+        Decision variables: V(x)
+        """
+
+        # Create the mathematical program
+        for i in range(20):
+            rho = 1 * 0.9**i
+            prog = MathematicalProgram()
+            prog.AddIndeterminates(xbar)
+
+            # Create Lyapunov Decision Variable
+            (V, P) = prog.NewSosPolynomial(Variables(xbar), V_degree)
+            V = V.ToExpression()
+            Vdot = Jacobian([V], xbar).dot(f)[0][0]
+
+            # Constraints & Objective
+            prog.AddLinearConstraint(V.Substitute({xbar[0]: 0, xbar[1]: 0}) == 0)
+            prog.AddSosConstraint(V-1e-9*xbar.dot(xbar))
+            prog.AddSosConstraint(-Vdot + lambda_xbar*(V-rho))
+
+
+            # lambda_degree = Polynomial(lambda_xbar).TotalDegree()
+            # Vdot_degree = int(math.ceil(Polynomial(Vdot).TotalDegree() / 2.0) * 2)
+            # d = max((lambda_degree + Vdot_degree - V_degree) // 2, 1)
+            # prog.AddSosConstraint((V-1)*(xbar.dot(xbar))**d + lambda_xbar * Vdot)
+            # prog.AddCost(np.trace(P))
+
+            result = Solve(prog)
+
+            if result.is_success():
+                return Polynomial(
+                    result.GetSolution(V)
+                ).RemoveTermsWithSmallCoefficients(1e-6).ToExpression()
+
+        return None
+
+    Vs = []
+    rhos = []
+    for i in range(iter):
+        print(f"Bilinear iteration {i+1}")
+        # Bilinear 1
+        lambda_, rho = optimize_lambda_given_V(V, xbar, f)
+        Vs.append(V)
+        rhos.append(rho)
+        
+        if i+1 == iter:
+            break
+
+        # Bilinear 2
+        V = optimize_V_given_lambda(lambda_, xbar, f)
+        if V is None:
+            print("Terminated early due to numerical issues.")
+            break
+
+    return Vs, rhos
