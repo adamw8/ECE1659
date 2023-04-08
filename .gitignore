@@ -28,3 +28,6 @@
 
 # User-specified configuration
 /user.bazelrc
+
+# Adam-specific
+*__pycache__*
