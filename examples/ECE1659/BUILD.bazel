@@ -48,8 +48,8 @@ py_binary(
 )
 
 py_binary(
-    name = "lqr",
-    srcs = ["lqr.py"],
+    name = "optimal_lqr",
+    srcs = ["optimal_lqr.py"],
     deps = [
         "//bindings/pydrake",
     ],

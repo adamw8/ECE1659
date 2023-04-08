@@ -7,7 +7,7 @@ import argparse
 from plotting_utils import *
 from pendulum_utils import *
 
-def bilinear_ROA(iter = 3):
+def bilinear_ROA(bilinear_iter = 3):
     # Setup system
     builder = DiagramBuilder()
     pendulum = builder.AddSystem(PendulumPlant())
@@ -21,7 +21,9 @@ def bilinear_ROA(iter = 3):
     # LQR
     Q = np.diag((5, 1.))
     R = [1.]
-    (K, P) = LinearQuadraticRegulator(linearized_pendulum.A(), linearized_pendulum.B(), Q, R)
+    (K, P) = LinearQuadraticRegulator(linearized_pendulum.A(),
+                                      linearized_pendulum.B(),
+                                      Q, R)
 
     # Pendulum Parameters
     m = 1
@@ -43,7 +45,7 @@ def bilinear_ROA(iter = 3):
     V = xbar.dot(P.dot(xbar))
 
     # Bilinear seaerch for ROA
-    Vs, rhos = maximize_rho_bilinear(V, xbar, f, iter)
+    Vs, rhos = maximize_rho_bilinear(V, xbar, f, bilinear_iter, lambda_degree=2)
 
 
     # visualize the dynamics
@@ -80,8 +82,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
                     prog='bilinear_ROA',
                     description='Maximizes ROA for simple pendulum with bilinear search')
-    parser.add_argument('--iter', type=int, default=3)
+    parser.add_argument('--bilinear_iter', type=int, default=3)
     args = parser.parse_args()
 
-    bilinear_ROA(args.iter)
+    bilinear_ROA(args.bilinear_iter)
     

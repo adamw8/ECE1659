@@ -87,7 +87,7 @@ def maximize_rho():
     (pendulum, V, xbar, is_certified) = verify_rho(best_rho)
     return (pendulum, V, xbar, best_rho)
 
-def maximize_rho_bilinear(V, xbar, f, iter=3):
+def maximize_rho_bilinear(V, xbar, f, iter=3, V_degree=2, lambda_degree=2):
     def optimize_lambda_given_V(V, xbar, f, lambda_degree=2):
         """
         Solves the program:
@@ -106,7 +106,7 @@ def maximize_rho_bilinear(V, xbar, f, iter=3):
         
         # line search for best rho
         rho = 1
-        lo = 1
+        lo = 0
         hi = -1
         iteration = 0
         best_rho = -1
@@ -125,7 +125,10 @@ def maximize_rho_bilinear(V, xbar, f, iter=3):
             prog.AddSosConstraint(lambda_xbar)
 
             # solve program
-            result = Solve(prog)
+            try:
+                result = Solve(prog)
+            except:
+                break
 
             # line search
             iteration += 1
@@ -137,8 +140,8 @@ def maximize_rho_bilinear(V, xbar, f, iter=3):
             else:
                 hi = rho
                 rho = (lo+hi)/2
-
-            if (hi > 0 and hi-lo < 1) or iteration >= 20:
+        
+            if (hi > 0 and hi-lo < 0.01) or iteration >= 20:
                 break
         
         return best_lambda, best_rho
@@ -158,7 +161,7 @@ def maximize_rho_bilinear(V, xbar, f, iter=3):
 
         # Create the mathematical program
         for i in range(20):
-            rho = 1 * 0.9**i
+            rho = 0.9**i
             prog = MathematicalProgram()
             prog.AddIndeterminates(xbar)
 
@@ -193,7 +196,11 @@ def maximize_rho_bilinear(V, xbar, f, iter=3):
     for i in range(iter):
         print(f"Bilinear iteration {i+1}")
         # Bilinear 1
-        lambda_, rho = optimize_lambda_given_V(V, xbar, f)
+        lambda_, rho = optimize_lambda_given_V(V, xbar, f, lambda_degree=lambda_degree)
+        if lambda_ is None:
+            print("Terminated early due to numerical issues in finding lambda.")
+            break
+        
         Vs.append(V)
         rhos.append(rho)
         
@@ -201,9 +208,9 @@ def maximize_rho_bilinear(V, xbar, f, iter=3):
             break
 
         # Bilinear 2
-        V = optimize_V_given_lambda(lambda_, xbar, f)
+        V = optimize_V_given_lambda(lambda_, xbar, f, V_degree=V_degree)
         if V is None:
-            print("Terminated early due to numerical issues.")
+            print("Terminated early due to numerical issues in finding V.")
             break
 
     return Vs, rhos
