@@ -12,6 +12,16 @@ from pydrake.all import (
     SymbolicVectorSystem,
 )
 
+import sys, os
+
+# Disable
+def block_print():
+    sys.stdout = open(os.devnull, 'w')
+
+# Restore
+def enable_print():
+    sys.stdout = sys.__stdout__
+
 def compute_ROA_volume(V, x, rho):
     V_normalized = Polynomial(V / rho)
 
@@ -72,8 +82,10 @@ def optimal_lqr(RL_iter=10, bilinear_iter = 3, frame_time=-1):
         V = x.dot(P.dot(x))
 
         # Bilinear seaerch for ROA
+        block_print()
         Vs, rhos = maximize_rho_bilinear(
             V, x, f, bilinear_iter, V_degree=2, lambda_degree=6)
+        enable_print()
         if len(Vs) == 0:
             print("Failed to certify any ROA with current Q")
             return
@@ -85,6 +97,15 @@ def optimal_lqr(RL_iter=10, bilinear_iter = 3, frame_time=-1):
             best_volume = baseline_volume
             best_Q = Q
             best_R = R
+
+        # Print
+        print(f"Iteration {iter}")
+        print("------------------------------------------------------------")
+        print(f"Q: diag({Q[0,0]}, {Q[1,1]}")
+        print(f"R: {R}")
+        print(f"Cost: {baseline_cost}")
+        print(f"Volume: {baseline_volume}")
+        print("\n")
         
         # Store training data for plotting
         Q1s.append(Q[0,0])
@@ -161,9 +182,11 @@ def optimal_lqr(RL_iter=10, bilinear_iter = 3, frame_time=-1):
         V = x.dot(P.dot(x))
 
         # Bilinear seaerch for ROA
+        block_print()
         Vs, rhos = maximize_rho_bilinear(
             V, x, f, bilinear_iter, V_degree=2, lambda_degree=6)
-        
+        enable_print()
+
         if len(Vs) == 0:
             print("Failed to certify any ROA with new_Q")
             return
@@ -198,8 +221,11 @@ def optimal_lqr(RL_iter=10, bilinear_iter = 3, frame_time=-1):
     V = x.dot(best_P.dot(x))
 
     # Bilinear seaerch for ROA
+    block_print()
     Vs, rhos = maximize_rho_bilinear(
         V, x, f, bilinear_iter, V_degree=2, lambda_degree=6)
+    enable_print()
+
     best_V = Vs[-1]
     best_rho = rhos[-1]
 
@@ -264,7 +290,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
                     prog='bilinear_ROA',
                     description='Maximizes ROA for simple pendulum with bilinear search')
-    parser.add_argument('--RL_iter', type=int, default=3)
+    parser.add_argument('--RL_iter', type=int, default=20)
     parser.add_argument('--bilinear_iter', type=int, default=3)
     parser.add_argument('--frame_time', type=float, default=-1)
     args = parser.parse_args()
@@ -283,6 +309,6 @@ if __name__ == '__main__':
     # data.sort(reverse=True)
     # print(data[0:5])
 
-    np.random.seed(736)
+    np.random.seed(736) # Just for demo
     volume = optimal_lqr(args.RL_iter, args.bilinear_iter, args.frame_time)
     print(volume)
