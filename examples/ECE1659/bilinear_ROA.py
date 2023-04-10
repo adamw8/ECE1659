@@ -2,12 +2,13 @@ import math
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.animation as ani
 import argparse
 
 from plotting_utils import *
 from pendulum_utils import *
 
-def bilinear_ROA(bilinear_iter = 3):
+def bilinear_ROA(bilinear_iter = 3, save=0):
     # Setup system
     builder = DiagramBuilder()
     pendulum = builder.AddSystem(PendulumPlant())
@@ -47,43 +48,64 @@ def bilinear_ROA(bilinear_iter = 3):
     # Bilinear seaerch for ROA
     Vs, rhos = maximize_rho_bilinear(V, xbar, f, bilinear_iter, lambda_degree=2)
 
+    def animate(i):
+        plt.clf()
 
-    # visualize the dynamics
-    fig, ax = plt.subplots(figsize=(10, 20))
-    xlim = (-2.1*np.pi,2.1*np.pi)
-    ylim = (-25,25)
+        # visualize the dynamics
+        xlim = (-2.1*np.pi,2.1*np.pi)
+        ylim = (-25,25)
 
-    plot_2d_phase_portrait(pendulum, xlim, ylim, colored=True)
-    plt.xlabel(r"$\theta$")
-    plt.ylabel(r"$\dot{\theta}$")
-    # plot markers at the stable and unstable equillibrium
-    plt.plot([-2*np.pi, 0, 2*np.pi], [0, 0, 0], 'x', color='red', markersize='10')
-    plt.plot([-np.pi, np.pi], [0, 0], '*', color='red', markersize='10')
+        plot_2d_phase_portrait(pendulum, xlim, ylim, colored=True)
+        plt.xlabel(r"$\theta$")
+        plt.ylabel(r"$\dot{\theta}$")
+        # plot markers at the stable and unstable equillibrium
+        plt.plot([-2*np.pi, 0, 2*np.pi], [0, 0, 0], 'x', color='red', markersize='10')
+        plt.plot([-np.pi, np.pi], [0, 0], '*', color='red', markersize='10')
 
-    # plot the certified ROA
-    for i in range(len(Vs)):
+        # plot the certified ROA
         n = 100
         X1 = np.linspace(xlim[0], xlim[1], n)
         X2 = np.linspace(ylim[0], ylim[1], n)
         Z = np.zeros((n,n))
+        
+        if i > 0:
+            # plot the certified ROA
+            n = 100
+            X1 = np.linspace(xlim[0], xlim[1], n)
+            X2 = np.linspace(ylim[0], ylim[1], n)
+            Z = np.zeros((n,n))
 
-        V = Vs[i]
-        rho = rhos[i]
-        for i, x1 in enumerate(X1):
-            for j, x2 in enumerate(X2):
-                Z[j,i] = V.Evaluate({xbar[0]: x1-np.pi, xbar[1]: x2})
-        plt.contour(X1, X2, Z, levels=[rho], 
-                            linestyles='dashed', cmap=plt.get_cmap('autumn'), 
-                            linewidths=2)
-
+            V = Vs[i-1]
+            rho = rhos[i-1]
+            for i, x1 in enumerate(X1):
+                for j, x2 in enumerate(X2):
+                    Z[j,i] = V.Evaluate({xbar[0]: x1-np.pi, xbar[1]: x2})
+            plt.contour(X1, X2, Z, levels=[rho], 
+                                linestyles='dashed', cmap=plt.get_cmap('autumn'), 
+                                linewidths=2)
+    
+    fig, ax = plt.subplots(figsize=(20, 10))
+    if save:
+        print("Preparing animation...")
+        last_frame_duration = 5
+        anim = ani.FuncAnimation(fig, animate, frames=len(Vs), interval=1000)
+        anim.save("examples/ECE1659/animations/bilinear_ROA.mp4")
+    else:
+        for i in range(len(Vs)+1):
+            animate(i)
+            if i == len(Vs):
+                plt.pause(5)
+            else:
+                plt.pause(0.5)
     plt.show()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
                     prog='bilinear_ROA',
                     description='Maximizes ROA for simple pendulum with bilinear search')
-    parser.add_argument('--bilinear_iter', type=int, default=3)
+    parser.add_argument('--bilinear_iter', type=int, default=10)
+    parser.add_argument('--save', type=int, default=0)
     args = parser.parse_args()
 
-    bilinear_ROA(args.bilinear_iter)
+    bilinear_ROA(args.bilinear_iter, args.save)
     

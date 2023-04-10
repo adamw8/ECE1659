@@ -52,7 +52,7 @@ def plot_2d_phase_portrait(f, x1lim=(-1, 1), x2lim=(-1, 1), n=100j, colored=Fals
         )
 
         # colorbar on the right that measures the magnitude of xdot
-        plt.gcf().colorbar(strm.lines, label=r"$|\dot\mathbf{x}|$")
+        # plt.gcf().colorbar(strm.lines, label=r"$|\dot\mathbf{x}|$")
     else:
         strm = plt.streamplot(
             X1.T[0], X2[0], X1d.T, X2d.T, color="gray", **kwargs

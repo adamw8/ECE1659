@@ -2,6 +2,7 @@ import math
 import time
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.animation as ani
 import argparse
 
 from plotting_utils import *
@@ -13,6 +14,8 @@ from pydrake.all import (
 )
 
 import sys, os
+
+np.random.seed(736) # Just for demo
 
 # Disable
 def block_print():
@@ -43,13 +46,55 @@ def compute_cost(volume, Q, R):
            + param_QR_ratio_term * math.sqrt(Q[0,0]**2 + Q[1,1]**2) / R[0]
 
 
-def optimal_lqr(RL_iter=10, bilinear_iter = 3, frame_time=-1):
+def optimal_lqr(RL_iter=10, bilinear_iter = 3, save=0):
+    base_prog = MathematicalProgram()
+    x = base_prog.NewIndeterminates(2, "x")
+
+    def animate(i):
+        # Check if drawing end frames
+        if i > RL_iter:
+            i = RL_iter + 1
+
+        plt.clf()
+        # Closed loop system
+        u = -Ks[i].dot(x)
+        f = [-x[0] - 2*x[1]**2 + u,
+            x[1] + x[0]*x[1] + 2*x[1]**3 + u]
+        sys = SymbolicVectorSystem(state=x, dynamics=f)
+
+        # visualize the dynamics
+        xlim = (-10, 10)
+        ylim = (-10, 10)
+
+        plot_2d_phase_portrait(sys, xlim, ylim, colored=True)
+        plt.plot([0], [0], '*', color='red', markersize='10')
+        if i <= RL_iter:
+            plt.title(f"Certified ROA for Iteration {i}")
+        else:
+            plt.title("Final Certified ROA")
+
+        # plot the certified ROA       
+        n = 100
+        X1 = np.linspace(xlim[0], xlim[1], n)
+        X2 = np.linspace(ylim[0], ylim[1], n)
+        Z = np.zeros((n,n))
+
+        V = Vs[i]
+        rho = rhos[i]
+        for i, x1 in enumerate(X1):
+            for j, x2 in enumerate(X2):
+                Z[j,i] = V.Evaluate({x[0]: x1, x[1]: x2})
+        plt.contour(X1, X2, Z, levels=[rho], 
+                            linestyles='dashed', cmap=plt.get_cmap('autumn'), 
+                            linewidths=2)
+
     # Setup linearized system
     A = np.array([[-1, 0], [0, 1]])
     B = np.ones((2,1))
     Q = np.diag((1., 1.))
     R = [1]
 
+    # learning parameters
     alpha = 0.1
     baseline_cost = float('inf')
     best_volume = -1
@@ -57,12 +102,20 @@ def optimal_lqr(RL_iter=10, bilinear_iter = 3, frame_time=-1):
     best_R = R
     best_cost = float('inf')
 
+    # for training plots
     Q1s = []
     Q2s = []
     Rs = []
     volumes = []
     costs = []
+    best_V = None
+    best_rho = -1
+    best_K = None
     
+    # for ROA animations
+    Vs = []
+    rhos = []
+    Ks = []
 
     # Search for LQR controller with largest ROA using weight perturbation
     for iter in range(RL_iter+1):
@@ -71,7 +124,7 @@ def optimal_lqr(RL_iter=10, bilinear_iter = 3, frame_time=-1):
 
         # Define the SOS program
         prog = MathematicalProgram()
-        x = prog.NewIndeterminates(2, "x")
+        prog.AddIndeterminates(x)
 
         # Closed loop dyanmics
         u = -K.dot(x)
@@ -83,25 +136,29 @@ def optimal_lqr(RL_iter=10, bilinear_iter = 3, frame_time=-1):
 
         # Bilinear seaerch for ROA
         block_print()
-        Vs, rhos = maximize_rho_bilinear(
+        V_, rho_ = maximize_rho_bilinear(
             V, x, f, bilinear_iter, V_degree=2, lambda_degree=6)
         enable_print()
-        if len(Vs) == 0:
+        if len(V_) == 0:
             print("Failed to certify any ROA with current Q")
             return
         
-        baseline_volume = compute_ROA_volume(Vs[-1], x, rhos[-1])
+        baseline_volume = compute_ROA_volume(V_[-1], x, rho_[-1])
         baseline_cost = compute_cost(baseline_volume, Q, R)
+
         if baseline_cost < best_cost:
             best_cost = baseline_cost
             best_volume = baseline_volume
             best_Q = Q
             best_R = R
+            best_V = V_[-1]
+            best_rho = rho_[-1]
+            best_K = K
 
         # Print
         print(f"Iteration {iter}")
         print("------------------------------------------------------------")
-        print(f"Q: diag({Q[0,0]}, {Q[1,1]}")
+        print(f"Q: diag({Q[0,0]}, {Q[1,1]})")
         print(f"R: {R}")
         print(f"Cost: {baseline_cost}")
         print(f"Volume: {baseline_volume}")
@@ -114,36 +171,10 @@ def optimal_lqr(RL_iter=10, bilinear_iter = 3, frame_time=-1):
         volumes.append(baseline_volume)
         costs.append(baseline_cost)
 
-        # visualize the dynamics
-        sys = SymbolicVectorSystem(state=x, dynamics=f)
-        fig, ax = plt.subplots(figsize=(10, 20))
-        xlim = (-10, 10)
-        ylim = (-10, 10)
-
-        plot_2d_phase_portrait(sys, xlim, ylim, colored=True)
-        plt.plot([0], [0], '*', color='red', markersize='10')
-
-        # plot the certified ROA       
-        n = 100
-        X1 = np.linspace(xlim[0], xlim[1], n)
-        X2 = np.linspace(ylim[0], ylim[1], n)
-        Z = np.zeros((n,n))
-
-        V = Vs[-1]
-        rho = rhos[-1]
-        for i, x1 in enumerate(X1):
-            for j, x2 in enumerate(X2):
-                Z[j,i] = V.Evaluate({x[0]: x1, x[1]: x2})
-        plt.contour(X1, X2, Z, levels=[rho], 
-                            linestyles='dashed', cmap=plt.get_cmap('autumn'), 
-                            linewidths=2)
-
-        if frame_time > 0:
-            plt.show(block=False)
-            plt.pause(frame_time)
-            plt.close()
-        else:
-            plt.show()
+        # Store data for visualization
+        Vs.append(V_[-1])
+        rhos.append(rho_[-1])
+        Ks.append(K)
 
         if iter == RL_iter:
             break
@@ -171,7 +202,7 @@ def optimal_lqr(RL_iter=10, bilinear_iter = 3, frame_time=-1):
 
         # Define the SOS program
         prog = MathematicalProgram()
-        x = prog.NewIndeterminates(2, "x")
+        prog.AddIndeterminates(x)
 
         # Closed loop dyanmics
         u = -K.dot(x)
@@ -183,16 +214,16 @@ def optimal_lqr(RL_iter=10, bilinear_iter = 3, frame_time=-1):
 
         # Bilinear seaerch for ROA
         block_print()
-        Vs, rhos = maximize_rho_bilinear(
+        V_, rho_ = maximize_rho_bilinear(
             V, x, f, bilinear_iter, V_degree=2, lambda_degree=6)
         enable_print()
 
-        if len(Vs) == 0:
+        if len(V_) == 0:
             print("Failed to certify any ROA with new_Q")
             return
         
         # Update Q
-        new_volume = compute_ROA_volume(Vs[-1], x, rhos[-1])
+        new_volume = compute_ROA_volume(V_[-1], x, rho_[-1])
         new_cost = compute_cost(new_volume, new_Q, new_R)
         alpha_temp = alpha
         while True:
@@ -207,83 +238,102 @@ def optimal_lqr(RL_iter=10, bilinear_iter = 3, frame_time=-1):
 
                 
     """ RL Search Complete. Plot best V, rho, K """
-    # Define the SOS program
-    prog = MathematicalProgram()
-    x = prog.NewIndeterminates(2, "x")
+    Vs.append(best_V)
+    rhos.append(best_rho)
+    Ks.append(best_K)
+    # # Define the SOS program
+    # prog = MathematicalProgram()
+    # x = prog.NewIndeterminates(2, "x")
 
-    # Closed loop dyanmics
-    (best_K, best_P) = LinearQuadraticRegulator(A, B, best_Q, best_R)
-    u = -best_K.dot(x)
-    f = [-x[0] - 2*x[1]**2 + u,
-        x[1] + x[0]*x[1] + 2*x[1]**3 + u]
+    # # Closed loop dyanmics
+    # (best_K, best_P) = LinearQuadraticRegulator(A, B, best_Q, best_R)
+    # u = -best_K.dot(x)
+    # f = [-x[0] - 2*x[1]**2 + u,
+    #     x[1] + x[0]*x[1] + 2*x[1]**3 + u]
     
-    # Use cost-to-go as the Lyapunov candidate
-    V = x.dot(best_P.dot(x))
+    # # Use cost-to-go as the Lyapunov candidate
+    # V = x.dot(best_P.dot(x))
 
-    # Bilinear seaerch for ROA
-    block_print()
-    Vs, rhos = maximize_rho_bilinear(
-        V, x, f, bilinear_iter, V_degree=2, lambda_degree=6)
-    enable_print()
+    # # Bilinear seaerch for ROA
+    # block_print()
+    # V_, rho_ = maximize_rho_bilinear(
+    #     V, x, f, bilinear_iter, V_degree=2, lambda_degree=6)
+    # enable_print()
 
-    best_V = Vs[-1]
-    best_rho = rhos[-1]
+    # best_V = V_[-1]
+    # best_rho = rho_[-1]
 
-    # visualize the dynamics
-    sys = SymbolicVectorSystem(state=x, dynamics=f)
-    fig, ax = plt.subplots(figsize=(10, 20))
-    xlim = (-10, 10)
-    ylim = (-10, 10)
+    # # visualize the dynamics
+    # sys = SymbolicVectorSystem(state=x, dynamics=f)
+    # fig, ax = plt.subplots(figsize=(20, 10))
+    # xlim = (-10, 10)
+    # ylim = (-10, 10)
 
-    plot_2d_phase_portrait(sys, xlim, ylim, colored=True)
-    plt.plot([0], [0], '*', color='red', markersize='10')
+    # plot_2d_phase_portrait(sys, xlim, ylim, colored=True)
+    # plt.plot([0], [0], '*', color='red', markersize='10')
 
-    # plot the certified ROA       
-    n = 100
-    X1 = np.linspace(xlim[0], xlim[1], n)
-    X2 = np.linspace(ylim[0], ylim[1], n)
-    Z = np.zeros((n,n))
+    # # plot the certified ROA       
+    # n = 100
+    # X1 = np.linspace(xlim[0], xlim[1], n)
+    # X2 = np.linspace(ylim[0], ylim[1], n)
+    # Z = np.zeros((n,n))
 
-    for i, x1 in enumerate(X1):
-        for j, x2 in enumerate(X2):
-            Z[j,i] = best_V.Evaluate({x[0]: x1, x[1]: x2})
-    plt.contour(X1, X2, Z, levels=[best_rho], 
-                        linestyles='dashed', cmap=plt.get_cmap('autumn'), 
-                        linewidths=2)
-    plt.show()
+    # for i, x1 in enumerate(X1):
+    #     for j, x2 in enumerate(X2):
+    #         Z[j,i] = best_V.Evaluate({x[0]: x1, x[1]: x2})
+    # plt.contour(X1, X2, Z, levels=[best_rho], 
+    #                     linestyles='dashed', cmap=plt.get_cmap('autumn'), 
+    #                     linewidths=2)
+    # plt.show()
 
-    print(f"Best Q:\n{Q}")
-    print(f"Best R:\n{R}")
-    print(f"Best K:\n{K}")
-    print(f"Certified that {str(best_V)} < {best_rho} is a ROA")
+    print(f"Best Q:\n{best_Q}")
+    print(f"Best R:\n{best_R}")
+    print(f"Best K:\n{Ks[-1]}")
+    print(f"Certified that {str(Vs[-1])} < {rhos[-1]} is a ROA")
 
     # plot training stats
-    fig, axs = plt.subplots(3,figsize=(20, 20))
-    fig.suptitle("Training Statistics")
-    iters = range(RL_iter+1)
+    # fig, axs = plt.subplots(3,figsize=(20, 20))
+    # fig.suptitle("Training Statistics")
+    # iters = range(RL_iter+1)
 
-    # Q, R plot
-    axs[0].set_title('Q and R Over Iterations')
-    axs[0].set_ylabel("Value")
-    axs[0].plot(iters, Q1s, label=r"$Q_{11}$")
-    axs[0].plot(iters, Q2s, label=r"$Q_{22}$")
-    axs[0].plot(iters, Rs, label=r"$R$")
-    axs[0].legend()
+    # # Q, R plot
+    # axs[0].set_title('Q and R Over Iterations')
+    # axs[0].set_ylabel("Value")
+    # axs[0].plot(iters, Q1s, label=r"$Q_{11}$")
+    # axs[0].plot(iters, Q2s, label=r"$Q_{22}$")
+    # axs[0].plot(iters, Rs, label=r"$R$")
+    # axs[0].legend()
 
-    # Volume Plot
-    axs[1].set_title('Volume of Normalized Unit Level Set')
-    axs[1].set_ylabel("Normalized Volume")
-    axs[1].plot(iters, volumes)
+    # # Volume Plot
+    # axs[1].set_title('Volume of Normalized Unit Level Set')
+    # axs[1].set_ylabel("Normalized Volume")
+    # axs[1].plot(iters, volumes)
 
-    # Cost Plot
-    axs[2].set_title('Value of Cost Function Over Iterations')
-    axs[2].set_ylabel("Cost")
-    axs[2].set_xlabel("Iteration")
-    axs[2].plot(iters, costs)
+    # # Cost Plot
+    # axs[2].set_title('Value of Cost Function Over Iterations')
+    # axs[2].set_ylabel("Cost")
+    # axs[2].set_xlabel("Iteration")
+    # axs[2].plot(iters, costs)
+    # plt.show()
+
+    fig, ax = plt.subplots(figsize=(20, 10))   
+       
+    if save:
+        print("Preparing animation...")
+        last_frame_duration = 5
+        num_frames = RL_iter + 2 + last_frame_duration
+        anim = ani.FuncAnimation(fig, animate, frames=num_frames, interval=1000)
+        anim.save("examples/ECE1659/animations/lqr_search.mp4")
+    else:
+        for i in range(RL_iter+2):
+            animate(i)
+            if i == RL_iter+1:
+                plt.pause(5)
+            else:
+                plt.pause(0.5)
     plt.show()
 
     return best_volume
-
 
 
 if __name__ == '__main__':
@@ -292,23 +342,7 @@ if __name__ == '__main__':
                     description='Maximizes ROA for simple pendulum with bilinear search')
     parser.add_argument('--RL_iter', type=int, default=20)
     parser.add_argument('--bilinear_iter', type=int, default=3)
-    parser.add_argument('--frame_time', type=float, default=-1)
+    parser.add_argument('--save', type=int, default=0)
     args = parser.parse_args()
 
-    # data = []
-    # for i in range(200):
-    #     print(f"Test {i+1}")
-    #     print("---------------------------------------------------------------")
-    #     seed = np.random.randint(0, 2**16-1)
-    #     np.random.seed(seed)
-    #     volume = optimal_lqr(args.RL_iter, args.bilinear_iter, args.frame_time)
-        
-    #     if volume is not None:
-    #         data.append((volume, seed))
-
-    # data.sort(reverse=True)
-    # print(data[0:5])
-
-    np.random.seed(736) # Just for demo
-    volume = optimal_lqr(args.RL_iter, args.bilinear_iter, args.frame_time)
-    print(volume)
+    volume = optimal_lqr(args.RL_iter, args.bilinear_iter, args.save)
