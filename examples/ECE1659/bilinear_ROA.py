@@ -108,4 +108,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     bilinear_ROA(args.bilinear_iter, args.save)
-    

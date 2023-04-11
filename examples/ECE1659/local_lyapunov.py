@@ -7,6 +7,11 @@ import matplotlib.pyplot as plt
 from plotting_utils import *
 from pendulum_utils import *
 
+
+from pydrake.all import (
+    SymbolicVectorSystem,
+)
+
 """
 Code for Region of Attraction Example
 """

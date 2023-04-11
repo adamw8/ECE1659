@@ -26,12 +26,11 @@ Parts of code are adapted from Russ Tedrake's underactuated course notes.
 def find_lyapunov():
     prog = MathematicalProgram()
     x = prog.NewIndeterminates(2, "x")
-    # f = [-x[0] - 2 * x[1] ** 2, -x[1] - x[0] * x[1] - 2 * x[1] ** 3]
 
     # Dynamics of a jet engine: (Derived from Moore-Greitzer)
     f = [-x[1] - 1.5*x[0]**2 - 0.5*x[0]**3, 3*x[0] - x[1]]
 
-    V = prog.NewSosPolynomial(Variables(x), 2)[0].ToExpression()
+    V = prog.NewSosPolynomial(Variables(x), 4)[0].ToExpression()
     prog.AddLinearConstraint(V.Substitute({x[0]: 0, x[1]: 0}) == 0)
     prog.AddLinearConstraint(V.Substitute({x[0]: 1, x[1]: 0}) == 1)
     Vdot = V.Jacobian(x).dot(f)
@@ -46,12 +45,13 @@ def find_lyapunov():
             )
             + "$")    
     sys = SymbolicVectorSystem(state=x, dynamics=f)
-    fig, ax = plt.subplots(figsize=(10, 10))
+    fig, ax = plt.subplots(figsize=(20, 10))
 
     lim = 10
-    x1lim = (-lim,lim)
+    x1lim = (-2*lim,2*lim)
     x2lim = (-lim,lim)
-    plot_2d_phase_portrait(sys, x1lim, x2lim)
+    plot_2d_phase_portrait(sys, x1lim, x2lim, colored=True)
+    plt.plot([0], [0], '*', color='red', markersize='10')
     plot_lyapunov_function(V_certificate, x, x1lim, x2lim, levels=np.linspace(0, 3000, 11))
     plt.show()
 
