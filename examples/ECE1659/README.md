@@ -7,6 +7,8 @@ This directory contains all the code required to reproduce the demonstrations fr
 
 **local_lyapunov.py:** find the region of attraction (ROA) for an LQR controller applied to an inverted pendulum system using the S-Procedure.
 
+**pendulum_simulation.py:** simulates the closed-loop pendulum system from 20 random initial conditions sampled within the ceritifed region of attraction in `local_lyapunov.py`.
+
 **bilinear_ROA.py:** iteratively grow the ROA for the LQR controller using bilinear search.
 
 **optimal_LQR.py:** uses gradient-free RL (weight perturbation algorithm) to search for LQR controllers with large ROAs for a polynomial system.
