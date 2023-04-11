@@ -21,6 +21,7 @@ This directory contains all the code required to reproduce the demonstrations fr
 bazel build examples/ECE1659/... --jobs=8
 ```
 The build can take up to 30 minutes. Depending on the amount of RAM on your computer, you may wish to reduce the number of jobs.
+
 2. To run an example (ex. for global_lyapunov.py):
 ```
 bazel-bin/examples/ECE1659/global_lyapunov
