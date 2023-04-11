@@ -22,6 +22,12 @@ bazel build examples/ECE1659/...
 ```
 bazel-bin/examples/ECE1659/global_lyapunov
 ```
+
+## Slides
+The presentation slides are available at this link: [https://docs.google.com/presentation/d/14fsw4hD0i7gDyZic5aQcxRm1MsdsupERR73Dd4r-CYQ/edit?usp=sharing](https://docs.google.com/presentation/d/14fsw4hD0i7gDyZic5aQcxRm1MsdsupERR73Dd4r-CYQ/edit?usp=sharing)
+
+A pdf version of the slides (no animations) is available at `presentation_slides_NO_ANIMATIONS.pdf`.
+
 ## Resources
 1. [Structured Semidefinite Programs and Semialgebraic Geometry Methods in Robustness and Optimization](https://www.mit.edu/~parrilo/pubs/files/thesis.pdf)  by [Prof. Pablo Parrilo](https://www.mit.edu/~parrilo/): Chapters 4 and 7
 2. [MAE509](https://control.asu.edu/) taught by [Prof. Matthew M. Peet](https://control.asu.edu/): Lectures [16](https://control.asu.edu/Classes/MAE598/598Lecture16.pdf) and [17](https://control.asu.edu/Classes/MAE598/598Lecture17.pdf)
